@@ -1,11 +1,11 @@
-
 require 'pathname'
 require 'pythonconfig'
 require 'yaml'
 
 CONFIG = Config.fetch('presentation', {})
-
+#sunum dizini
 PRESENTATION_DIR = CONFIG.fetch('directory', 'p')
+#config dosyasından öntanımlı ayarları al
 DEFAULT_CONFFILE = CONFIG.fetch('conffile', '_templates/presentation.cfg')
 INDEX_FILE = File.join(PRESENTATION_DIR, 'index.html')
 IMAGE_GEOMETRY = [ 733, 550 ]
