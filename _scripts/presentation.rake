@@ -8,9 +8,11 @@ PRESENTATION_DIR = CONFIG.fetch('directory', 'p')
 #config dosyasından öntanımlı ayarları al
 DEFAULT_CONFFILE = CONFIG.fetch('conffile', '_templates/presentation.cfg')
 INDEX_FILE = File.join(PRESENTATION_DIR, 'index.html')
+#resim dosyasının maximum byutlarını belirle
 IMAGE_GEOMETRY = [ 733, 550 ]
 DEPEND_KEYS    = %w(source css js)
 DEPEND_ALWAYS  = %w(media)
+#yapılması istenen görevler ve tanımları
 TASKS = {
     :index   => 'sunumları indeksle',
     :build   => 'sunumları oluştur',
@@ -25,6 +27,7 @@ presentation   = {}
 tag            = {}
 
 class File
+#yeni yol oluştur ve çalışma dizinine ekle
   @@absolute_path_here = Pathname.new(Pathname.pwd)
   def self.to_herepath(path)
     Pathname.new(File.expand_path(path)).relative_path_from(@@absolute_path_here).to_s
@@ -37,7 +40,9 @@ class File
 end
 
 def png_comment(file, string)
+#eklenen kitaplık png dosyalarını okur
   require 'chunky_png'
+#png dosyaları için bir eklenti
   require 'oily_png'
 
   image = ChunkyPNG::Image.from_file(file)
@@ -54,19 +59,22 @@ def png_optim(file, threshold=40000)
   end
   png_comment(file, 'raked')
 end
-
+#jpg dosyalarını iyileştir.
 def jpg_optim(file)
+#jpg dosyalarını iyileştir
   sh "jpegoptim -q -m80 #{file}"
+#iyileştirdiğini yorumla
   sh "mogrify -comment 'raked' #{file}"
 end
-
+#jpg ve png dosyalarını iyileştir.
 def optim
+#alt dizinlerde ki jpg ve png dosyalarını listeler
   pngs, jpgs = FileList["**/*.png"], FileList["**/*.jpg", "**/*.jpeg"]
 
   [pngs, jpgs].each do |a|
     a.reject! { |f| %x{identify -format '%c' #{f}} =~ /[Rr]aked/ }
   end
-
+#kalan dosyaların en ve boylarını bul
   (pngs + jpgs).each do |f|
     w, h = %x{identify -format '%[fx:w] %[fx:h]' #{f}}.split.map { |e| e.to_i }
     size, i = [w, h].each_with_index.max
