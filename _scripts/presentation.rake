@@ -10,21 +10,21 @@ DEFAULT_CONFFILE = CONFIG.fetch('conffile', '_templates/presentation.cfg')
 INDEX_FILE = File.join(PRESENTATION_DIR, 'index.html')
 #resim dosyasının maximum byutlarını belirle
 IMAGE_GEOMETRY = [ 733, 550 ]
-DEPEND_KEYS    = %w(source css js)
-DEPEND_ALWAYS  = %w(media)
+DEPEND_KEYS = %w(source css js)
+DEPEND_ALWAYS = %w(media)
 #yapılması istenen görevler ve tanımları
 TASKS = {
-    :index   => 'sunumları indeksle',
-    :build   => 'sunumları oluştur',
-    :clean   => 'sunumları temizle',
-    :view    => 'sunumları görüntüle',
-    :run     => 'sunumları sun',
-    :optim   => 'resimleri iyileştir',
+    :index => 'sunumları indeksle',
+    :build => 'sunumları oluştur',
+    :clean => 'sunumları temizle',
+    :view => 'sunumları görüntüle',
+    :run => 'sunumları sun',
+    :optim => 'resimleri iyileştir',
     :default => 'öntanımlı görev',
 }
 
-presentation   = {}
-tag            = {}
+presentation = {}
+tag = {}
 
 class File
 #yeni yol oluştur ve çalışma dizinine ekle
@@ -83,8 +83,9 @@ def optim
       sh "mogrify -resize #{arg} #{f}"
     end
   end
-
+#her bir png dosyasını iyileştir
   pngs.each { |f| png_optim(f) }
+#her bir jpg dosyasını iyileştir
   jpgs.each { |f| jpg_optim(f) }
 
   (pngs + jpgs).each do |f|
@@ -111,75 +112,87 @@ FileList[File.join(PRESENTATION_DIR, "[^_.]*")].each do |dir|
       $stderr.puts "#{dir}: 'landslide' bölümü tanımlanmamış"
       exit 1
     end
-
+#landslide bölümü mevcut mu?
     if landslide['destination']
+#yapılan ayarların hatalarını belirt
       $stderr.puts "#{dir}: 'destination' ayarı kullanılmış; hedef dosya belirtilmeyin"
       exit 1
     end
-
+#index.md dosyası mevcut mu?
     if File.exists?('index.md')
+#dosya adı olan index'i base'e ata
       base = 'index'
+#genel sunum dosyası olduğunu true ile belirle
       ispublic = true
+#presentation.md dosyası mevcut mu?
     elsif File.exists?('presentation.md')
+#dosya adı olan presentation'u base'e ata
       base = 'presentation'
+#genel sunum dosyası olmadığını false ile belirle
       ispublic = false
     else
+#.md uzantılı dosyaların olup olmadığını kontrol et yoksa hatayı bas
       $stderr.puts "#{dir}: sunum kaynağı 'presentation.md' veya 'index.md' olmalı"
+#1 ile çık
       exit 1
     end
 
     basename = base + '.html'
     thumbnail = File.to_herepath(base + '.png')
     target = File.to_herepath(basename)
-
+# Var olan dosyaları listele
     deps = []
     (DEPEND_ALWAYS + landslide.values_at(*DEPEND_KEYS)).compact.each do |v|
       deps += v.split.select { |p| File.exists?(p) }.map { |p| File.to_filelist(p) }.flatten
     end
-
+ #kullanılmayan ara dosyaları temizle
     deps.map! { |e| File.to_herepath(e) }
     deps.delete(target)
     deps.delete(thumbnail)
 
     tags = []
-
+#sunu dizininin bilgilerinin listele
    presentation[dir] = {
-      :basename  => basename,	# üreteceğimiz sunum dosyasının baz adı
-      :conffile  => conffile,	# landslide konfigürasyonu (mutlak dosya yolu)
-      :deps      => deps,	# sunum bağımlılıkları
-      :directory => dir,	# sunum dizini (tepe dizine göreli)
-      :name      => name,	# sunum ismi
-      :public    => ispublic,	# sunum dışarı açık mı
-      :tags      => tags,	# sunum etiketleri
-      :target    => target,	# üreteceğimiz sunum dosyası (tepe dizine göreli)
-      :thumbnail => thumbnail, 	# sunum için küçük resim
+      :basename => basename, # üreteceğimiz sunum dosyasının baz adı
+      :conffile => conffile, # landslide konfigürasyonu (mutlak dosya yolu)
+      :deps => deps, # sunum bağımlılıkları
+      :directory => dir, # sunum dizini (tepe dizine göreli)
+      :name => name, # sunum ismi
+      :public => ispublic, # sunum dışarı açık mı
+      :tags => tags, # sunum etiketleri
+      :target => target, # üreteceğimiz sunum dosyası (tepe dizine göreli)
+      :thumbnail => thumbnail, # sunum için küçük resim
     }
   end
 end
-
+#sözlük veri yapısında yani hash de ki değerlerin tags değerlerinin değerine #göre boş liste ata
 presentation.each do |k, v|
   v[:tags].each do |t|
     tag[t] ||= []
+#bu tags lere atama yap
     tag[t] << k
   end
 end
-
+#tasktab'a yeni görevler ekledi
 tasktab = Hash[*TASKS.map { |k, v| [k, { :desc => v, :tasks => [] }] }.flatten]
 
 presentation.each do |presentation, data|
   ns = namespace presentation do
     file data[:target] => data[:deps] do |t|
       chdir presentation do
+#landslide programın çalıştır
         sh "landslide -i #{data[:conffile]}"
         sh 'sed -i -e "s/^\([[:blank:]]*var hiddenContext = \)false\(;[[:blank:]]*$\)/\1true\2/" presentation.html'
         unless data[:basename] == 'presentation.html'
+#presentation.html dosyasını ayar dosyalarında belirtildiği yere taşı
           mv 'presentation.html', data[:basename]
         end
       end
     end
-
+#
     file data[:thumbnail] => data[:target] do
       next unless data[:public]
+#sunum dosyasının görüntüsünü al
       sh "cutycapt " +
           "--url=file://#{File.absolute_path(data[:target])}#slide1 " +
           "--out=#{data[:thumbnail]} " +
@@ -187,10 +200,12 @@ presentation.each do |presentation, data|
           "--min-width=1024 " +
           "--min-height=768 " +
           "--delay=1000"
+#tekrar dosyayı boyutlandırdı
       sh "mogrify -resize 240 #{data[:thumbnail]}"
+#iyileştirme yap
       png_optim(data[:thumbnail])
     end
-
+#optim görevininin yapacağı işleri belirle
     task :optim do
       chdir presentation do
         optim
@@ -200,22 +215,24 @@ presentation.each do |presentation, data|
     task :index => data[:thumbnail]
 
     task :build => [:optim, data[:target], :index]
-
+#görüntüle görevini tanımla
     task :view do
       if File.exists?(data[:target])
         sh "touch #{data[:directory]}; #{browse_command data[:target]}"
       else
+#sunum dosyası yoksa hata bas
         $stderr.puts "#{data[:target]} bulunamadı; önce inşa edin"
       end
     end
-
+#çalıştır görevinin yapacağı işleri belirle
+#çalıştır build ve wiev görevlerine bağlıdır 
     task :run => [:build, :view]
-
+#temizle görevini tanımla ve yapacağı işleri belirle
     task :clean do
       rm_f data[:target]
       rm_f data[:thumbnail]
     end
-
+#ön tanımlı görevin build görevine bağlı olduğunu belirle
     task :default => :build
   end
 
@@ -225,14 +242,14 @@ presentation.each do |presentation, data|
     tasktab[name][:tasks] << t
   end
 end
-
+#p isminde bir çalışma uzayı oluştur
 namespace :p do
   tasktab.each do |name, info|
     desc info[:desc]
     task name => info[:tasks]
     task name[0] => name
   end
-
+#build yani inşa et görevini oluştur
   task :build do
     index = YAML.load_file(INDEX_FILE) || {}
     presentations = presentation.values.select { |v| v[:public] }.map { |v| v[:directory] }.sort
@@ -246,6 +263,7 @@ namespace :p do
   end
 
   desc "sunum menüsü"
+#menü görevini oluştur.
   task :menu do
     lookup = Hash[
       *presentation.sort_by do |k, v|
